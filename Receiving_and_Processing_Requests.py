@@ -1,0 +1,161 @@
+import flet as ft
+from datetime import datetime
+
+# Начальные данные пациентов
+patients_data = [
+    (
+        "Иванов Иван Иванович",
+        "35 лет",
+        "Боль в горле, заложенность носа, температура 38.9, слабость",
+        None,
+        "Горло, нос",
+        "Новый",
+        datetime.now().strftime("%Y-%m-%d %H:%M")
+    ),
+    (
+        "Петрова Светлана Кирриловна",
+        "35 лет",
+        "Головные боли, ощущение холода, температура 37.1, бессонница",
+        None,
+        "Голова",
+        "Новый",
+        datetime.now().strftime("%Y-%m-%d %H:%M")
+    ),
+    (
+        "Сидоров Алексей Владимирович",
+        "46 лет",
+        "Боль в груди, мышечная боль, температура 36.4, слабость",
+        "https://upload.wikimedia.org/wikipedia/commons/d/db/Chest.jpg",
+        "мышцы",
+        "Новый",
+        datetime.now().strftime("%Y-%m-%d %H:%M")
+    )
+]
+
+# Текущий выбранный пациент
+current_patient_index = None
+
+
+def main(page: ft.Page):
+    page.title = "Медицинская система для врачей"
+    page.theme_mode = ft.ThemeMode.LIGHT
+    page.window_width = 1200
+    page.window_height = 800
+    page.padding = 20
+
+    # Элементы интерфейса
+    patient_list = ft.ListView(expand=True, spacing=10)
+    patient_details = ft.Column(scroll=ft.ScrollMode.AUTO, expand=True)
+    status_dropdown = ft.Dropdown()
+    diagnosis_field = ft.TextField(label="Диагноз", multiline=True, min_lines=3)
+    treatment_field = ft.TextField(label="Лечение", multiline=True, min_lines=3)
+    notes_field = ft.TextField(label="Заметки", multiline=True, min_lines=2)
+    patient_image = ft.Image(width=300, height=200, fit=ft.ImageFit.CONTAIN)
+
+    # Статусы
+    statuses = ["Новый", "В работе", "Ожидание анализов", "Назначено лечение", "Закрыто"]
+    status_dropdown.options = [ft.dropdown.Option(s) for s in statuses]
+
+    def load_patients():
+        patient_list.controls.clear()
+        for i, patient in enumerate(patients_data):
+            name, age, symptoms, photo, pain_area, status, date = patient
+            patient_list.controls.append(
+                ft.ListTile(
+                    title=ft.Text(name),
+                    subtitle=ft.Text(f"{age} | {status} | {date}"),
+                    leading=ft.Icon(ft.Icons.PERSON),
+                    on_click=lambda e, i=i: select_patient(i),
+                    bgcolor=ft.Colors.BLUE_50 if status == "Новый" else None
+                )
+            )
+        page.update()
+
+    def select_patient(index):
+        global current_patient_index
+        current_patient_index = index
+        name, age, symptoms, photo, pain_area, status, date = patients_data[index]
+
+        patient_details.controls = [
+            ft.Text(f"Пациент: {name}", size=24, weight=ft.FontWeight.BOLD),
+            ft.Text(f"Возраст: {age}"),
+            ft.Text(f"Дата обращения: {date}"),
+            ft.Divider(),
+            ft.Text("Симптомы:", weight=ft.FontWeight.BOLD),
+            ft.Text(symptoms),
+            ft.Text("Область боли:", weight=ft.FontWeight.BOLD),
+            ft.Text(pain_area),
+            ft.Divider(),
+            ft.Text("Фото:", weight=ft.FontWeight.BOLD),
+            patient_image,
+            ft.Divider(),
+            ft.Text("Диагностика:", weight=ft.FontWeight.BOLD),
+            status_dropdown,
+            diagnosis_field,
+            ft.Text("Лечение:", weight=ft.FontWeight.BOLD),
+            treatment_field,
+            ft.Text("Заметки:", weight=ft.FontWeight.BOLD),
+            notes_field,
+            ft.Row([
+                ft.ElevatedButton("Сохранить", on_click=save_patient),
+                ft.ElevatedButton("Закрыть обращение", on_click=close_patient,
+                                  visible=status == "Назначено лечение")
+            ], spacing=10)
+        ]
+
+        status_dropdown.value = status
+        diagnosis_field.value = ""
+        treatment_field.value = ""
+        notes_field.value = ""
+
+        if photo:
+            patient_image.src = photo
+            patient_image.visible = True
+        else:
+            patient_image.visible = False
+
+        page.update()
+
+    def save_patient(e):
+        if current_patient_index is not None:
+            patient = list(patients_data[current_patient_index])
+            patient[5] = status_dropdown.value  # Обновляем статус
+
+            # Здесь можно добавить логику сохранения диагноза и лечения
+            # Например, добавить эти данные в кортеж пациента или в отдельный словарь
+
+            patients_data[current_patient_index] = tuple(patient)
+            load_patients()
+            page.snack_bar = ft.SnackBar(ft.Text("Данные сохранены!"))
+            page.snack_bar.open = True
+            page.update()
+
+    def close_patient(e):
+        if current_patient_index is not None:
+            patient = list(patients_data[current_patient_index])
+            patient[5] = "Закрыто"
+            patients_data[current_patient_index] = tuple(patient)
+            load_patients()
+            page.snack_bar = ft.SnackBar(ft.Text("Обращение закрыто!"))
+            page.snack_bar.open = True
+            page.update()
+
+    # Инициализация интерфейса
+    load_patients()
+
+    page.add(
+        ft.Row([
+            ft.Column([
+                ft.Text("Очередь пациентов", size=20, weight=ft.FontWeight.BOLD),
+                patient_list
+            ], width=300),
+            ft.VerticalDivider(width=10),
+            ft.Column([
+                ft.Text("Карта пациента", size=20, weight=ft.FontWeight.BOLD),
+                patient_details
+            ], expand=True)
+        ], expand=True)
+    )
+
+
+ft.app(target=main)
